@@ -4,7 +4,7 @@ using static System.Math;
 namespace Optimizations;
 
 /// <summary>
-/// Объект решеающий оптимизайионную задачу
+/// Объект, решающий оптимизационную задачу
 /// </summary>
 public class Optimizer
 {
@@ -33,6 +33,35 @@ public class Optimizer
         return (x - y).Norma();
     }
 
+    #region Одномерная оптимизация
+    private double FindOptimalStep(Point2D x_prev,
+    Point2D grad, double c, double alpha, double lambda)
+    {
+        double step = alpha;
+        Point2D x_find = new Point2D()
+        {
+            X = x_prev.X - grad.X * step,
+            Y = x_prev.Y - grad.Y * step
+        };
+
+        double f_k = _f(x_prev);
+        double f_m = _f(x_find);
+
+        while (f_m - f_k > -c * step * Pow(grad.Norma(), 2))
+        {
+            step *= lambda;
+            x_find = new Point2D()
+            {
+                X = x_prev.X - grad.X * step,
+                Y = x_prev.Y - grad.Y * step,
+            };
+            f_m = _f(x_find);
+        }
+
+        return step;
+    }
+    #endregion
+
     #region Метод градиентного спуска
     /// <summary>
     /// Метод градиентного спуска с адаптивным подбором шага (backtracking).
@@ -45,59 +74,37 @@ public class Optimizer
     /// <param name="lamda">Коэффициент уменьшения шага (0 < lamda < 1)</param>
     /// <param name="tol">Точность (критерий остановки)</param>
     /// <param name="c">Коэффициент Армихо</param>
-    /// <returns>Точка минимума функции</returns>
-    public Point2D GradientDescent(Point2D x0, double alpha, 
+    /// <returns>Точка минимума функции, минимальное значение функции, кол-во итераций</returns>
+    public OptimizationResult GradientDescent(Point2D x0, double alpha, 
         double lamda = 0.5, double c = 10e-4, double tol = 10e-6)
     {
-        double step = alpha;
-        Point2D x_k = x0;
-        Point2D grad = _grad(x_k);
-        Point2D x_m = new Point2D()
+        Point2D x_prev;
+        double f_prev;
+
+        Point2D x_next = x0;
+        double f_next = _f(x_next);
+        Point2D grad = _grad(x_next);
+
+        int iterationCount = 0;
+
+        do
         {
-            X = x_k.X - grad.X * step,
-            Y = x_k.Y - grad.Y * step,
+            x_prev = x_next;
+            f_prev = f_next;
+            double step = FindOptimalStep(x_prev, grad, c, alpha, lamda);
+
+            x_next = x_prev - step * grad;
+            f_next = _f(x_next);
+            grad = _grad(x_next);
+            iterationCount++;
+        } while (GetDistance(x_next, x_prev) > tol || Abs(f_prev - f_next) > tol || grad.Norma() > tol);
+
+        return new OptimizationResult()
+        {
+            MinFunctionValue = f_next,
+            MinPoint = x_next,
+            IterationCount = iterationCount
         };
-        double f_k = _f(x_k);
-        double f_m = _f(x_m);
-        int iterations = 1;
-        while (f_m - f_k > - c * step * Pow(grad.Norma(), 2))
-        {
-            step *= lamda;
-            x_m = new Point2D()
-            {
-                X = x_k.X - grad.X * step,
-                Y = x_k.Y - grad.Y * step,
-            };
-            f_m = _f(x_m);
-        }
-
-        while (GetDistance(x_m, x_k) > tol || (Abs(f_m - f_k) > tol) || grad.Norma() > tol)
-        {
-            step = alpha;
-            x_k = x_m;
-            grad = _grad(x_k);
-            x_m = new Point2D()
-            {
-                X = x_k.X - grad.X * step,
-                Y = x_k.Y - grad.Y * step,
-            };
-            f_k = _f(x_k);
-            f_m = _f(x_m);
-            iterations++;
-            while (f_m - f_k > - c * step * Pow(grad.Norma(), 2))
-            {
-                step *= lamda;
-                x_m = new Point2D()
-                {
-                    X = x_k.X - grad.X * step,
-                    Y = x_k.Y - grad.Y * step,
-                };
-                f_m = _f(x_m);
-            }
-        }
-
-        Console.WriteLine(iterations);
-        return x_m;
     }
     #endregion
 
@@ -113,93 +120,47 @@ public class Optimizer
     /// <param name="lamda">Коэффициент уменьшения шага</param>
     /// <param name="alpha">Начальный шаг</param>
     /// <param name="eps">Точность (критерий остановки)</param>
-    /// <returns>Точка минимума функции</returns>
-    public Point2D ConjugateGradient(Point2D x0, double lamda = 0.5, 
-        double alpha = 1.0, double eps = 10e-6)
+    /// <returns>Точка минимума функции, минимальное значение функции, кол-во итераций</returns>
+    public OptimizationResult ConjugateGradient(Point2D x0, double lamda = 0.5, 
+        double alpha = 1.0, double c = 10e-4, double eps = 10e-6)
     {
-        double step = alpha;
-        Point2D x_prev = x0;
-        Point2D grad = _grad(x_prev);
-        Point2D p = new Point2D()
-        {
-            X = -grad.X,
-            Y = -grad.Y
-        };
-        Point2D x_new = new Point2D()
-        {
-            X = x_prev.X + p.X * step,
-            Y = x_prev.Y + p.Y * step
-        };
-        double f_k = _f(x_prev);
-        double f_m = _f(x_new);
-        int iterations = 1;
-        while (f_m - f_k > -eps * step * Pow(grad.Norma(), 2))
-        {
-            step *= lamda;
-            x_new = new Point2D()
-            {
-                X = x_prev.X + p.X * step,
-                Y = x_prev.Y + p.Y * step
-            };
-            f_m = _f(x_new);
-        }
+        Point2D x_prev;
+        double f_prev;
 
-        Point2D grad_next = _grad(x_new);
-        double beta = grad_next.Dot(grad_next - grad) / Pow(grad.Norma(), 2);
-        p = new Point2D()
-        {
-            X = -grad_next.X + beta * grad.X,
-            Y = -grad_next.Y + beta * grad.Y
-        };
-        grad = grad_next;
+        Point2D x_next = x0;
+        double f_next = _f(x_next);
+        Point2D grad = _grad(x_next);
+        Point2D p = -grad;
 
-        double count = 0;
+        int iterationCount = 0;
 
-        while (grad_next.Norma() > eps && GetDistance(x_new, x_prev) > eps)
-        {
-            step = alpha;
-            x_prev = x_new;
-            x_new = new Point2D()
-            {
-                X = x_prev.X + p.X * step,
-                Y = x_prev.Y + p.Y * step
-            };
-            f_k = _f(x_prev);
-            f_m = _f(x_new);
-            while (f_m - f_k > -eps * step * Pow(grad.Norma(), 2))
-            {
-                step *= lamda;
-                x_new = new Point2D()
-                {
-                    X = x_prev.X + p.X * step,
-                    Y = x_prev.Y + p.Y * step
-                };
-                f_m = _f(x_new);
-            }
+        do
+        { 
+            x_prev = x_next;
+            f_prev = f_next;   
+            double step = FindOptimalStep(x_prev, -p, c, alpha, lamda);
 
-            grad_next = _grad(x_new);
-            beta = grad_next.Dot(grad_next - grad) / Pow(grad.Norma(), 2);
-            p = new Point2D()
-            {
-                X = -grad_next.X + beta * grad.X,
-                Y = -grad_next.Y + beta * grad.Y
-            };
+            x_next = x_prev + p * step;
+            f_next = _f(x_next);
+            
+            Point2D grad_next = _grad(x_next);
+            double beta = grad_next.Dot(grad_next - grad) / Pow(grad.Norma(), 2);
+            p = -grad_next + beta * p;
             grad = grad_next;
-            count++;
-            iterations++;
-            if (count == 1)
-            {
-                p = new Point2D()
-                {
-                    X = -grad_next.X,
-                    Y = -grad_next.Y
-                };
-                count = 0;
-            }
-        }
 
-        Console.WriteLine(iterations);
-        return x_new;
+            iterationCount++;
+            if (iterationCount % 2 == 0)
+            {
+                p = -grad;
+            }
+        } while (grad.Norma() > eps || GetDistance(x_next, x_prev) > eps || Abs(f_next - f_prev) > eps) ;
+
+        return new OptimizationResult()
+        {
+            MinFunctionValue = f_next,
+            MinPoint = x_next,
+            IterationCount = iterationCount
+        };
     }
 
     #endregion
@@ -214,29 +175,37 @@ public class Optimizer
     /// </summary>
     /// <param name="x0">Начальная точка</param>
     /// <param name="tol">Точность (критерий остановки)</param>
-    /// <returns>Точка минимума функции</returns>
-    public Point2D Newton(Point2D x0, double tol = 10e-6)
+    /// <returns>Точка минимума функции, минимальное значение функции, кол-во итераций</returns>
+    public OptimizationResult Newton(Point2D x0, double tol = 10e-6)
     {
+        if (_newtonStep == null)
+            throw new InvalidOperationException("Newton step is not provided");
+
         Point2D x_m = x0;
         Point2D x_k = new Point2D()
         {
             X = x_m.X * 2,
             Y = x_m.Y * 2
         };
+
         double f_m = _f(x_m);
         double f_k = _f(x_k);
-        int iterations = 1;
-        while (GetDistance(x_m, x_k) > tol || (Abs(f_m - f_k) > tol))
+        int iterationCount = 1;
+        while (GetDistance(x_m, x_k) > tol || (Abs(f_m - f_k) > tol) || _grad(x_k).Norma() > tol)
         {
             x_m = x_k;
             x_k = _newtonStep!(x_m);
             f_m = _f(x_m);
             f_k = _f(x_k);
-            iterations++;
+            iterationCount++;
         }
-        Console.WriteLine(iterations);
-        return x_k;
+
+        return new OptimizationResult()
+        {
+            MinFunctionValue = f_k,
+            MinPoint = x_k,
+            IterationCount = iterationCount
+        };
     }
     #endregion
 }
-

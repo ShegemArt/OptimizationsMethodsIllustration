@@ -11,18 +11,27 @@ internal class Program
             x => GetFunction(x),
             x => Gradient(x),
             x => MatlabFunc(x)
-            ); 
+            );
 
-        Point2D resGradientDescent = optimizer.GradientDescent(startPoint, 0.5);
-        Console.WriteLine($"Метод градиентного спуска: {resGradientDescent.X}, {resGradientDescent.Y}");
+        OptimizationResult resGradientDescent = optimizer.GradientDescent(startPoint, 0.5);
+        Console.WriteLine("Метод градиентного спуска:");
+        Console.WriteLine($"Минимум функции: {resGradientDescent.MinFunctionValue}");
+        Console.WriteLine($"Кол-во итераций: {resGradientDescent.IterationCount}");
+        Console.WriteLine($"Точка минимума функции: {resGradientDescent.MinPoint.X}, {resGradientDescent.MinPoint.Y}");
 
         //Метод Ньютона
-        Point2D resNewton = optimizer.Newton(startPoint);
-        Console.WriteLine($"Метод Ньютона: {resNewton.X}, {resNewton.Y}");
+        OptimizationResult resNewton = optimizer.Newton(startPoint);
+        Console.WriteLine("Метод Ньютона:");
+        Console.WriteLine($"Минимум функции: {resNewton.MinFunctionValue}");
+        Console.WriteLine($"Кол-во итераций: {resNewton.IterationCount}");
+        Console.WriteLine($"Точка минимума функции: {resNewton.MinPoint.X}, {resNewton.MinPoint.Y}");
 
         // Метод сопряженных градиентов
-        Point2D resConjugateGradient = optimizer.ConjugateGradient(startPoint);
-        Console.WriteLine($"Метод сопряженных градиентов: {resConjugateGradient.X}, {resConjugateGradient.Y}");
+        OptimizationResult resConjugateGradient = optimizer.ConjugateGradient(startPoint);
+        Console.WriteLine("Метод сопряженных градиентов:");
+        Console.WriteLine($"Минимум функции: {resConjugateGradient.MinFunctionValue}");
+        Console.WriteLine($"Кол-во итераций: {resConjugateGradient.IterationCount}");
+        Console.WriteLine($"Точка минимума функции: {resConjugateGradient.MinPoint.X}, {resConjugateGradient.MinPoint.Y}");
     }
     #region Функция для оптимизации и вспомогательные функции
     /// <summary>
